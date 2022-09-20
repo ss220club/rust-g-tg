@@ -155,3 +155,18 @@ fn submit_request(prep: RequestPrep) -> Result<String> {
 
     Ok(serde_json::to_string(&resp)?)
 }
+
+byond_fn!(
+    fn start_http_client() {
+        Some("")
+    }
+);
+
+use jobs::shutdown_workers;
+
+byond_fn!(
+    fn shutdown_http_client() {
+        shutdown_workers();
+        Some("")
+    }
+);
