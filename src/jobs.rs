@@ -1,14 +1,15 @@
 //! Job system
-use flume::Receiver;
 use std::{
     cell::RefCell,
     collections::hash_map::{Entry, HashMap},
-    thread,
+    sync::mpsc,
 };
+use workerpool::thunk::{Thunk, ThunkWorker};
+use workerpool::Builder;
+use workerpool::Pool;
 
 struct Job {
-    rx: Receiver<Output>,
-    handle: thread::JoinHandle<()>,
+    rx: mpsc::Receiver<Output>,
 }
 
 type Output = String;
@@ -18,21 +19,19 @@ const NO_RESULTS_YET: &str = "NO RESULTS YET";
 const NO_SUCH_JOB: &str = "NO SUCH JOB";
 const JOB_PANICKED: &str = "JOB PANICKED";
 
-#[derive(Default)]
 struct Jobs {
     map: HashMap<JobId, Job>,
     next_job: usize,
+    pool: Pool<ThunkWorker<Output>>,
 }
 
 impl Jobs {
     fn start<F: FnOnce() -> Output + Send + 'static>(&mut self, f: F) -> JobId {
-        let (tx, rx) = flume::unbounded();
-        let handle = thread::spawn(move || {
-            let _ = tx.send(f());
-        });
+        let (tx, rx) = mpsc::channel();
+        self.pool.execute_to(tx, Thunk::of(f));
         let id = self.next_job.to_string();
         self.next_job += 1;
-        self.map.insert(id.clone(), Job { rx, handle });
+        self.map.insert(id.clone(), Job { rx });
         id
     }
 
@@ -43,22 +42,46 @@ impl Jobs {
         };
         let result = match entry.get().rx.try_recv() {
             Ok(result) => result,
-            Err(flume::TryRecvError::Disconnected) => JOB_PANICKED.to_owned(),
-            Err(flume::TryRecvError::Empty) => return NO_RESULTS_YET.to_owned(),
+            Err(mpsc::TryRecvError::Disconnected) => JOB_PANICKED.to_owned(),
+            Err(mpsc::TryRecvError::Empty) => return NO_RESULTS_YET.to_owned(),
         };
-        let _ = entry.remove().handle.join();
+        let _ = entry.remove();
         result
     }
 }
 
 thread_local! {
-    static JOBS: RefCell<Jobs> = RefCell::default();
+    static JOBS: RefCell<Option<Jobs>> = RefCell::new(None);
 }
 
 pub fn start<F: FnOnce() -> Output + Send + 'static>(f: F) -> JobId {
-    JOBS.with(|jobs| jobs.borrow_mut().start(f))
+    JOBS.with(|jobs| {
+        let mut option = jobs.borrow_mut();
+        if option.is_none() {
+            *option = Some(Jobs {
+                map: Default::default(),
+                next_job: 0,
+                pool: Builder::new()
+                    .thread_stack_size(512 * 1024)
+                    .num_threads(64)
+                    .build(),
+            });
+        }
+
+        option.as_mut().unwrap().start(f)
+    })
+}
+
+pub fn shutdown_workers() {
+    JOBS.with(|opt| opt.take().map(|jobs| jobs.pool.join()));
 }
 
 pub fn check(id: &str) -> String {
-    JOBS.with(|jobs| jobs.borrow_mut().check(id))
+    JOBS.with(|jobs| {
+        if let Some(jobs) = jobs.borrow_mut().as_mut() {
+            jobs.check(id)
+        } else {
+            JOB_PANICKED.to_owned()
+        }
+    })
 }
