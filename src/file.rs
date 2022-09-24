@@ -1,4 +1,5 @@
 use crate::error::Result;
+use base64::Engine;
 use std::{
     fs::{File, OpenOptions},
     io::{BufRead, BufReader, BufWriter, Read, Write},
@@ -12,8 +13,12 @@ byond_fn!(fn file_exists(path) {
     Some(exists(path))
 });
 
-byond_fn!(fn file_write(data, path) {
-    write(data, path).err()
+byond_fn!(fn file_write(data, path, ...rest) {
+    let mut should_decode_b64 = false;
+    if rest.first().map(|x| &**x) == Some("true") {
+        should_decode_b64 = true;
+    }
+    write(data, path, should_decode_b64).err()
 });
 
 byond_fn!(fn file_append(data, path) {
@@ -48,14 +53,24 @@ fn exists(path: &str) -> String {
     path.exists().to_string()
 }
 
-fn write(data: &str, path: &str) -> Result<usize> {
+fn write(data: &str, path: &str, base64decode: bool) -> Result<usize> {
     let path: &std::path::Path = path.as_ref();
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
 
     let mut file = BufWriter::new(File::create(path)?);
-    let written = file.write(data.as_bytes())?;
+
+    let written = if base64decode {
+        file.write(
+            base64::prelude::BASE64_STANDARD
+                .decode(data)
+                .unwrap()
+                .as_ref(),
+        )?
+    } else {
+        file.write(data.as_bytes())?
+    };
 
     file.flush()?;
     file.into_inner()
