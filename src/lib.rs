@@ -38,6 +38,8 @@ pub mod redis_pubsub;
 pub mod redis_reliablequeue;
 #[cfg(feature = "sql")]
 pub mod sql;
+#[cfg(feature = "text")]
+pub mod text;
 #[cfg(feature = "time")]
 pub mod time;
 #[cfg(feature = "toml")]
