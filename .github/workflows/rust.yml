@@ -34,12 +34,12 @@ jobs:
           command: fmt
           args: -- --check
 
-      - name: Build (release) (default features)
+      - name: Build (release) (all features)
         uses: actions-rs/cargo@v1
         with:
           toolchain: stable
           command: build
-          args: --target i686-pc-windows-msvc --locked --release
+          args: --target i686-pc-windows-msvc --features all --locked --release
 
       - uses: actions/upload-artifact@v3
         with:
@@ -96,12 +96,12 @@ jobs:
         env:
           BYOND_BIN: /home/runner/BYOND/byond/bin
 
-      - name: Build (release) (default features)
+      - name: Build (release) (all features)
         uses: actions-rs/cargo@v1
         with:
           toolchain: stable
           command: build
-          args: --target i686-unknown-linux-gnu --locked --release
+          args: --target i686-unknown-linux-gnu --locked --features all --release
 
       - uses: actions/upload-artifact@v3
         with:
