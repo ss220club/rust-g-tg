@@ -107,9 +107,9 @@ checksum = "f1fdabc7756949593fe60f30ec81974b613357de856987752631dea1e3394c80"
 
 [[package]]
 name = "aws-lc-rs"
-version = "1.6.3"
+version = "1.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74c7893277e48a02f0c626fb9a6a01cab62fe699c62ba246419741b4dec8fb88"
+checksum = "df33e4a55b03f8780ba55041bc7be91a2a8ec8c03517b0379d2d6c96d2c30d95"
 dependencies = [
  "aws-lc-sys",
  "mirai-annotations",
@@ -119,9 +119,9 @@ dependencies = [
 
 [[package]]
 name = "aws-lc-sys"
-version = "0.14.0"
+version = "0.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d05dbd77fa008adb51de4e8259226881ffb46f5bfbfdbcfb235f18c571a521d"
+checksum = "37ede3d6e360a48436fee127cb81710834407b1ec0c48a001cc29dec9005f73e"
 dependencies = [
  "bindgen",
  "cmake",
